@@ -1,0 +1,20 @@
+{
+  "name": "cheat-card-game-backend",
+  "version": "0.0.1",
+  "description": "Backend for card game called Cheat, the game frontend is avaible under Android",
+  "keywords": [
+    "cards",
+    "game",
+    "server"
+  ],
+  "author": "matthew9120",
+  "contributors": [],
+  "license": "GPL-3.0",
+  "dependencies": {
+    "express": "^4.16.2",
+    "socket.io": "^2.0.4"
+  },
+  "scripts": {
+    "start": "node app.js"
+  }
+}

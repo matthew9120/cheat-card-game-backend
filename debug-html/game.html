@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Cheat</title>
+        <meta charset="UTF-8">
+    </head>
+    <body>
+        <div>
+            <div id="listOfPlayers">
+
+            </div>
+            <a href="#" id="play">Begin game (all users connected)</a>
+        </div>
+        <script src="/socket.io/socket.io.js"></script>
+        <script src="http://code.jquery.com/jquery-3.2.1.min.js"></script>
+        <script>
+            $(function() {
+                var socket = io();
+                var nickname = "Player" + Math.floor(Math.random() * 100000).toString();
+
+                socket.emit("join game", nickname);
+
+                socket.on("send player list", function(list) {
+                    for (var i = 0; i < list.length; i++) {
+                        var name = list[i];
+                        
+                       $("#listOfPlayers").append("<p>" + name + "</p>");
+                    }
+                });
+                
+                socket.on("user connected", function(nickname) {
+                    $("#listOfPlayers").append("<p>" + nickname + "</p>");
+                });
+                
+                socket.on("user disconnected", function(nickname) {
+                    $("p:contains('" + nickname + "')").remove();
+                });
+                
+                $("#play").click(function() {
+                    //play
+                });
+
+                socket.on("end game", function(nickname) {
+                    $("body").html('<p>The game has been ended by ' + nickname + '</p><a href="#" onclick="location.reload(true);">Play again</a>');
+                });
+            });
+        </script>
+    </body>
+</html>
