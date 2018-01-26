@@ -3,9 +3,17 @@
     <head>
         <title>Cheat</title>
         <meta charset="UTF-8">
+        
+        <style>
+            #nickname-red
+            {
+                color: red;
+            }
+        </style>
     </head>
     <body>
-        <div>
+        <div id="nickname"></div>
+        <div id="list">
             <div id="listOfPlayers">
 
             </div>
@@ -17,6 +25,7 @@
             $(function() {
                 var socket = io();
                 var nickname = "Player" + Math.floor(Math.random() * 100000).toString();
+                $("#nickname").html('Playing as <span id="nickname-red">' + nickname + "</span>");
 
                 socket.emit("join game", nickname);
 
@@ -37,11 +46,29 @@
                 });
                 
                 $("#play").click(function() {
-                    //play
+                    socket.emit("request begin game");
+                });
+                
+                socket.on("begin game", function(data) {
+                    $("#list").fadeOut();
+                    
+                    data["cards"].forEach(function(element) {
+                        $("body").append("<p>" + element + "</p>");
+                    });
+                    
+                    data["numbersOfCards"].forEach(function(element) {
+                        $("body").append("<p>" + element.nickname + ": " + element.number +  "</p>");
+                    });
+                    
+                    $("body").append("<p>" + data.ownerOf2Heart + "</p>");
                 });
 
                 socket.on("end game", function(nickname) {
                     $("body").html('<p>The game has been ended by ' + nickname + '</p><a href="#" onclick="location.reload(true);">Play again</a>');
+                });
+                
+                socket.on("join rejected", function() {
+                    $(document).write("You cannot join when game is happening");
                 });
             });
         </script>
