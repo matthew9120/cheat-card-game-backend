@@ -2,21 +2,26 @@ var app = require("express")();
 var http = require("http").Server(app);
 var io = require("socket.io")(http);
 
+//debugging
 app.get("/", function(req, res) {
     res.sendFile(__dirname + "/debug-html/game.html");
+});
+
+app.get("/img/:name", function(req, res) {
+    res.sendFile(__dirname + "/debug-html/img/" + req.params.name);
 });
 
 var users = [];
 var move = 0;
 var inGame = false;
 var tableStack = [ 5 ];
-var lastPlacer = 0;
+var lastEnsured = 1;
 
 io.on("connection", function(socket) {
     console.log(socket.id + " (id) connected");
     
     socket.on("join game", function(nickname) {
-        if (!inGame) {
+        if (!inGame && typeof nickname === "string" && nickname.length >= 3 && nickname.length <= 15) {
             users.push({ id: socket.id, nickname: nickname, cards: [] });
 
             var list = [];
@@ -25,14 +30,16 @@ io.on("connection", function(socket) {
             });
 
 
-            socket.broadcast.emit("user connected", nickname);
             //emitting to users not in game
+            socket.broadcast.emit("user connected", nickname);
             socket.emit("send player list", list);
             console.log(nickname + " joined the game");
         } else {
             socket.emit("join rejected");
             
             socket.disconnect();
+            
+            console.log("Joining has been rejected");
         }
     });
     
@@ -67,6 +74,43 @@ io.on("connection", function(socket) {
         }
     });
     
+    socket.on("place cards", function(cards) {
+        var userIndex = findUserBySocketId(socket.id);
+        
+        var checkingIsInputValid = function(cardsToCheck, ensured) {
+            //checking values of cards
+            try {
+                return cardsToCheck.length === ensured.length &&
+                        (cardsToCheck.length === 1 || cardsToCheck.length === 3 || cardsToCheck.length === 4) &&
+                        checkArePermittedEnsuredCards(ensured);
+            } catch (e) {
+                return false;
+            }
+        };
+        
+        if (userIndex === move &&
+                checkingIsInputValid(cards.realCards, cards.ensuredCards) &&
+                checkArePermittedEnsuredCards(cards.ensuredCards) &&
+                checkIfUserHasCards(userIndex, cards.realCards)) {
+
+            
+            //placing cards
+            cards.ensuredCards.forEach(function(element) {
+                tableStack.push(element);
+            });
+            
+            lastEnsured = cards.ensuredCards[0];
+            
+            passNextMove();
+            
+            socket.broadcast.emit("cards placed", { "ensured": lastEnsured, "amountOfPlacedCards": cards.ensuredCards.length });
+            
+            
+        } else {
+            console.log("Unpermitted request for placing cards");
+        }
+    });
+    
     socket.on("disconnect", function() {
         if (inGame && findUserBySocketId(socket.id) > -1) {
             endGame(users[findUserBySocketId(socket.id)]);
@@ -77,7 +121,7 @@ io.on("connection", function(socket) {
             socket.broadcast.emit("user disconnected", nickname);
             console.log(nickname + " left the game");
             if (users.length > 1) {
-                users.splice(index, index);
+                users.splice(index, 1);
             } else {
                 users = [];
             }
@@ -97,7 +141,11 @@ function haveAllTheCards()
     
     deckOfCards.sort(function() { return 0.5 - Math.random(); });
     
-    var usersIndex = 0;
+    var usersIndex = Math.floor(Math.random() * users.length);
+    //debugging (to remove)
+    if (usersIndex >= users.length) {
+        throw "usersIndex out of range";
+    }
     for (var i = 0; i < 52; i++) {
         users[usersIndex++].cards.push(deckOfCards[i]);
         
@@ -120,12 +168,50 @@ function prepareNumbersOfCarsForEachNickname()
     return numbers;
 }
 
+function checkIfUserHasCards(userIndex, cardsToCheck)
+{
+    var cardsToCompare = users[userIndex].cards;
+    
+    cardsToCheck.forEach(function(element) {
+        var exists = false;
+        
+        cardsToCompare.forEach(function(element2) {
+            if (element === element2) {
+                exists = true;
+            }
+        });
+        
+        if (!exists) {
+            return false;
+        }
+    });
+    
+    return true;
+}
+
+function checkArePermittedEnsuredCards(cardsToCheck)
+{
+    var value = cardsToCheck[0];
+    
+    cardsToCheck.forEach(function(val) {
+        if (val !== value || typeof val !== "number") {
+            return false;
+        }
+    });
+    
+    if ((value >= lastEnsured || value === 1) && value > 0 && value <= 13) {
+        return true;
+    }
+    
+    return false;
+}
+
 function place2Heart()
 {
     for (var i = 0; i < users.length; i++) {
         for (var i2 = 0; i2 < users[i].cards.length; i2++) {
             if (users[i].cards[i2] === 5) {
-                users[i].cards.splice(i2, i2);
+                users[i].cards.splice(i2, 1);
                 
                 move = i;
                 passNextMove();
@@ -142,9 +228,9 @@ function placeCard(userIndex, cardIndex)
 {
     tableStack.push(users[userIndex].cards[cardIndex]);
     
-    users[userIndex].cards.splice(cardIndex, cardIndex);
+    users[userIndex].cards.splice(cardIndex, 1);
     
-    lastPlacer = userIndex;
+    passNextMove();
 }
 
 function passNextMove()

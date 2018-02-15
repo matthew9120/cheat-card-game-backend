@@ -9,15 +9,58 @@
             {
                 color: red;
             }
+            
+            #player-cards
+            {
+                margin-top: 50px;
+                color: green;
+            }
+            
+            .move-stl
+            {
+                color: blue;
+            }
+            
+            #game-panel
+            {
+                display: none;
+            }
+            
+            #other-players
+            {
+                color: gray;
+                margin-top: 50px;
+            }
+            
+            #stack
+            {
+                margin-top: 50px;
+            }
         </style>
     </head>
     <body>
+        <!--You can replace numbers by cards-->
         <div id="nickname"></div>
         <div id="list">
             <div id="listOfPlayers">
 
             </div>
             <a href="#" id="play">Begin game (all users connected)</a>
+        </div>
+        <div id="game-panel">
+            <div style="margin-top: 25px;">
+                <p class="move-stl">Move:</p>
+                <p class="move-stl" id="move"></p>
+            </div>
+            <div id="stack">
+                <p style="color: red;">2 heart</p>
+            </div>
+            <div id="player-cards">
+                <p>Your cards (<span id="numberOfC"></span>):</p>
+            </div>
+            <div id="other-players">
+                
+            </div>
         </div>
         <script src="/socket.io/socket.io.js"></script>
         <script src="http://code.jquery.com/jquery-3.2.1.min.js"></script>
@@ -26,6 +69,10 @@
                 var socket = io();
                 var nickname = "Player" + Math.floor(Math.random() * 100000).toString();
                 $("#nickname").html('Playing as <span id="nickname-red">' + nickname + "</span>");
+                var cards = [];
+                var numbersOfCards = [];
+                var move = 0;
+                var users = [];
 
                 socket.emit("join game", nickname);
 
@@ -51,16 +98,28 @@
                 
                 socket.on("begin game", function(data) {
                     $("#list").fadeOut();
+                    $("#game-panel").fadeIn();
                     
                     data["cards"].forEach(function(element) {
-                        $("body").append("<p>" + element + "</p>");
+                        $("#player-cards").append('<img src="/img/' + element + '.png" alt="' + element + '">');
                     });
                     
                     data["numbersOfCards"].forEach(function(element) {
-                        $("body").append("<p>" + element.nickname + ": " + element.number +  "</p>");
+                        users.push({ "nickname": element.nickname, "numberOfCards": element.number });
+                        
+                        if (element.nickname !== nickname) {
+                        
+                            $("#other-players").append("<p>" + element.nickname + ": " + element.number +  "</p>");
+                        } else {
+                            $("#numberOfC").html(element.number);
+                        }
                     });
                     
-                    $("body").append("<p>" + data.ownerOf2Heart + "</p>");
+                    if (data.ownerOf2Heart !== nickname) {
+                        $("#move").html(data.ownerOf2Heart);
+                    } else {
+                        $("#move").html("You");
+                    }
                 });
 
                 socket.on("end game", function(nickname) {
