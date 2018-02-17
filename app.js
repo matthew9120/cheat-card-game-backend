@@ -7,6 +7,8 @@ app.get("/", function(req, res) {
     res.sendFile(__dirname + "/debug-html/game.html");
 });
 
+/*deck of cards source:
+https://upload.wikimedia.org/wikipedia/commons/thumb/a/a1/Svg-cards-2.0.svg/1920px-Svg-cards-2.0.svg.png*/
 app.get("/img/:name", function(req, res) {
     res.sendFile(__dirname + "/debug-html/img/" + req.params.name);
 });
