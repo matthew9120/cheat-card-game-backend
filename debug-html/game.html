@@ -10,12 +10,6 @@
                 color: red;
             }
             
-            #player-cards
-            {
-                margin-top: 50px;
-                color: green;
-            }
-            
             .move-stl
             {
                 color: blue;
@@ -26,15 +20,9 @@
                 display: none;
             }
             
-            #other-players
-            {
-                color: gray;
-                margin-top: 50px;
-            }
-            
             #stack
             {
-                margin-top: 50px;
+                margin: 50px 0;
             }
         </style>
     </head>
@@ -48,17 +36,10 @@
             <a href="#" id="play">Begin game (all users connected)</a>
         </div>
         <div id="game-panel">
-            <div style="margin-top: 25px;">
-                <p class="move-stl">Move:</p>
-                <p class="move-stl" id="move"></p>
-            </div>
             <div id="stack">
                 <p style="color: red;">2 heart</p>
             </div>
-            <div id="player-cards">
-                <p>Your cards (<span id="numberOfC"></span>):</p>
-            </div>
-            <div id="other-players">
+            <div id="players">
                 
             </div>
         </div>
@@ -69,10 +50,40 @@
                 var socket = io();
                 var nickname = "Player" + Math.floor(Math.random() * 100000).toString();
                 $("#nickname").html('Playing as <span id="nickname-red">' + nickname + "</span>");
-                var cards = [];
-                var numbersOfCards = [];
+                var additionalOnStack = 0;
                 var move = 0;
                 var users = [];
+                var cards = [];
+                
+                function findUser(nickname)
+                {
+                    var index = -1;
+                    users.forEach(function(element, i) {
+                        if (element.nickname === nickname) {
+                            index = i;
+                        }
+                    });
+                    
+                    //debug
+                    if (index < 0) {
+                        throw "User not found";
+                    }
+                    
+                    return index;
+                }
+                
+                function passMove()
+                {
+                    var nick = users[move].nickname;
+                    $("#" + nick).css("background-color", "#fff");
+                    
+                    if (++move >= users.length) {
+                        move = 0;
+                    }
+                    
+                    nick = users[move].nickname;
+                    $("#" + nick).css("background-color", "#808080");
+                }
 
                 socket.emit("join game", nickname);
 
@@ -99,27 +110,31 @@
                 socket.on("begin game", function(data) {
                     $("#list").fadeOut();
                     $("#game-panel").fadeIn();
-                    
-                    data["cards"].forEach(function(element) {
-                        $("#player-cards").append('<img src="/img/' + element + '.png" alt="' + element + '">');
-                    });
-                    
-                    data["numbersOfCards"].forEach(function(element) {
+
+                    data.numbersOfCards.forEach(function(element) {
                         users.push({ "nickname": element.nickname, "numberOfCards": element.number });
                         
                         if (element.nickname !== nickname) {
                         
-                            $("#other-players").append("<p>" + element.nickname + ": " + element.number +  "</p>");
+                            $("#players").append('<p id="' + element.nickname + '">' + element.nickname + ": " + element.number +  "</p>");
                         } else {
-                            $("#numberOfC").html(element.number);
+                            var playerCards = $("#players").append('<p id="' + nickname + '">You: ' + element.number + '</p><div id="player-cards"></div>');
+                            
+                            cards = data.cards;
+                            
+                            cards.forEach(function(element, i) {
+                                var card = playerCards.append('<img id="card' + i + '" src="/img/' + element + '.png" alt="' + element + '">');
+                                //problem here
+                                card.click({ "in": i }, function(event) {
+                                    console.log(event.originalEvent.in);
+                                });
+                            });
                         }
                     });
                     
-                    if (data.ownerOf2Heart !== nickname) {
-                        $("#move").html(data.ownerOf2Heart);
-                    } else {
-                        $("#move").html("You");
-                    }
+                    move = findUser(data.ownerOf2Heart);
+                    passMove();
+                    
                 });
 
                 socket.on("end game", function(nickname) {
